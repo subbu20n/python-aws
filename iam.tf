@@ -1,39 +1,52 @@
-data "archive_file" "ec2_auto_start_zip" {
-  type        = "zip"
-  source_file = "${path.module}/ec2-auto-start.py"
-  output_path = "${path.module}/ec2-auto-start.zip"
+
+resource "aws_iam_role" "lambda_role" {
+  name = "LambdaAutoStartStopEC2"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Effect = "Allow"
+        Sid = ""
+      },
+    ]
+  })
 }
 
-
-data "archive_file" "ec2_auto_stop_zip" {
-  type        = "zip"
-  source_file = "${path.module}/ec2-auto-stop.py"
-  output_path = "${path.module}/ec2-auto-stop.zip"
+resource "aws_iam_policy" "lambda_policy" {
+  name   = "LambdaAutoStartStopEC2"
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Start*",
+        "ec2:Stop*",
+        "ec2:Describe*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+POLICY
 }
 
-resource "aws_lambda_function" "ec2_auto_start" {
-  function_name = "EC2AutoStart"
-  handler       = "ec2-auto-start.lambda_handler"
-  role          = aws_iam_role.lambda_role.arn
-  runtime       = "python3.12"
-
-  filename         = data.archive_file.ec2_auto_start_zip.output_path
-  source_code_hash = data.archive_file.ec2_auto_start_zip.output_base64sha256
-  timeout = 60
-
-  depends_on = [aws_iam_policy.lambda_policy]
-}
-
-
-resource "aws_lambda_function" "ec2_auto_stop" {
-  function_name = "EC2AutoStop"
-  handler       = "ec2-auto-stop.lambda_handler"
-  role          = aws_iam_role.lambda_role.arn
-  runtime       = "python3.12"
-
-  filename         = data.archive_file.ec2_auto_stop_zip.output_path
-  source_code_hash = data.archive_file.ec2_auto_stop_zip.output_base64sha256
-  timeout = 60
-
-  depends_on = [aws_iam_policy.lambda_policy]
+resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_policy.arn
 }
