@@ -34,4 +34,4 @@ def lambda_handler(event, context):
         'Environment': 'Dev'  # Example additional tag
     }
     region = 'us-east-1'
-    start_instances_by_tag(tags, region)
+    start_instances_by_tag(tags, region) 
